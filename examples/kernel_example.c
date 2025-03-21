@@ -3,10 +3,6 @@ typedef unsigned int uint32_t;
 typedef uint32_t size_t;
 
 
-// values from kernel.ld
-// __bss means 'the value at the 0th byte of the .bss section'
-// instead we need 'the start address of the .bss section'
-// that's why [] is added
 extern char __bss[], __bss_end, __stack_top[];
 
 void *memset(void *buf, char c, size_t n){
