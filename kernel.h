@@ -67,3 +67,15 @@ struct sbiret
     long error;
     long value;
 };
+
+#define PROCS_MAX 8   // Maximum number of processes
+#define PROC_UNUSED   0    // Unused process control structure
+#define PROC_RUNNABLE 1    // Runnable process
+
+struct process {
+    int pid;
+    // why not enum?
+    int state;              // PROC_UNUSED or PROC_RUNNABLE
+    vaddr_t sp;             // stack pointer
+    uint8_t stack[8192];    // kernel stack
+};
