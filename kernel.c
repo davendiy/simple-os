@@ -35,6 +35,12 @@ void kernel_main(void) {
     printf("\n\nHello %s\n", "World");
     printf("1 + 2 = %d, %x\n", 1 + 2, 0x1234abcd);
 
+    if (!strcmp("test", "test2")){
+        printf("Strings are equal.\n");
+    } else {
+        printf("Strings are not equal.\n");
+    }
+
     for (;;) {
         __asm__ __volatile__("wfi");
     }
