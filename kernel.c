@@ -45,9 +45,11 @@ __attribute__((aligned(4)))
 void kernel_entry(void) {
 
     __asm__ __volatile__(
-        // (sscratch is a temp storage for the stack pointer)
         // Retrieve the kernel stack of the running process from sscratch.
+        // (we stored it previously in the yield function before context switching)
         // (csrrw here is a swap operation)
+        // it should be done to prevent situation when sp was defined incorrectly
+        // somewhere in the user space
         "csrrw sp, sscratch, sp\n"
 
         // save 31 registers to the stack
@@ -269,6 +271,7 @@ void yield(void) {
 
     if (next == current_proc) return;
 
+    // store bottom of the next process' stack into tmp sscratch
     __asm__ __volatile__(
         "csrw sscratch, %[sscratch]\n"
         :
