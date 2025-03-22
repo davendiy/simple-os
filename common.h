@@ -24,13 +24,13 @@ Rounds up value to the nearest multiple of align. align must be a power of 2.
 /*
 Checks if value is a multiple of align. align must be a power of 2.
 */
-#define is_aligned(value, align) __buildin_is_aligned(value, align)
+#define is_aligned(value, align) __builtin_is_aligned(value, align)
 
 /*
 Returns the offset of a member within a structure
 (how many bytes from the start of the structure).
 */
-#define offsetof(type, member) __buildint_offsetof(type, member)
+#define offsetof(type, member) __builtint_offsetof(type, member)
 
 #define va_list __builtin_va_list
 #define va_start __builtin_va_start
