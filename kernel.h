@@ -3,7 +3,19 @@
 
 #include "common.h"
 
-// use as macros to correctly represent __FILE__ and __LINE__ parameters
+#define PROCS_MAX 8   // Maximum number of processes
+#define PROC_UNUSED   0    // Unused process control structure
+#define PROC_RUNNABLE 1    // Runnable process
+
+// single bit in the satp register which indicates "enable paging in Sv32 mode",
+#define SATP_SV32 (1u << 31)
+#define PAGE_V    (1 << 0)       // "Valid" bit (entry is enabled )
+#define PAGE_R    (1 << 1)       // Readable
+#define PAGE_W    (1 << 2)       // Writable
+#define PAGE_X    (1 << 3)       // Executable
+#define PAGE_U    (1 << 4)       // User (accesible in user mode)
+
+// macros instead of functions to correctly represent __FILE__ and __LINE__ parameters
 // do {} while (0) is a convenient way to define multi-line macros
 // ##__VA_ARGS__ is compiler extension to use multiple arguments in macros
 // ## means that comma will be excluded if __VA_ARGS__ is empty
@@ -68,14 +80,12 @@ struct sbiret
     long value;
 };
 
-#define PROCS_MAX 8   // Maximum number of processes
-#define PROC_UNUSED   0    // Unused process control structure
-#define PROC_RUNNABLE 1    // Runnable process
 
 struct process {
     int pid;
     // why not enum?
     int state;              // PROC_UNUSED or PROC_RUNNABLE
     vaddr_t sp;             // stack pointer
+    uint32_t *page_table;
     uint8_t stack[8192];    // kernel stack
 };

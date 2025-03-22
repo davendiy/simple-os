@@ -160,6 +160,46 @@ paddr_t alloc_pages(uint32_t n){
     return paddr;
 }
 
+/* ---------------------------- page table --------------------------------- */
+
+// magic
+// map the virtual page (!!) vaddr to the physical paddr
+void map_page(uint32_t *table1, vaddr_t vaddr, paddr_t paddr, uint32_t flags){
+    if (!is_aligned(vaddr, PAGE_SIZE)){
+        PANIC("unaligned vaddr %x", vaddr);
+    }
+
+    if (!is_aligned(paddr, PAGE_SIZE)){
+        PANIC("unaligned paddr %x", paddr);
+    }
+
+    // 10 bits from 32 to 22
+    uint32_t vpn1 = (vaddr >> 22) & 0x3ff;
+    if ((table1[vpn1] & PAGE_V) == 0) {
+        // Create the non-existent 2nd level page table
+        // (will be table0)
+        uint32_t pt_paddr = alloc_pages(1);
+
+        // table1 should contain the physical page number, not the
+        // physical address itself
+        table1[vpn1] = ((pt_paddr / PAGE_SIZE) << 10) | PAGE_V;
+    }
+
+    // Set the 2nd level page table entry to map the physical page
+    // 10 bits from 22 to 12
+    uint32_t vpn0 = (vaddr >> 12) & 0x3ff;
+
+    // get the physical page number, but treat it as a pointer
+    uint32_t *table0 = (uint32_t *) ((table1[vpn1] >> 10) * PAGE_SIZE);
+
+    // here we use paddr instead of pt_paddr!!!
+    table0[vpn0] = ((paddr / PAGE_SIZE) << 10) | flags | PAGE_V;
+}
+
+
+/* ---------------------------- processes --------------------------------- */
+
+
 __attribute__((naked)) void switch_context(
     uint32_t *prev_sp, uint32_t *next_sp
 ) {
@@ -204,6 +244,7 @@ __attribute__((naked)) void switch_context(
 }
 
 struct process procs[PROCS_MAX];     // All process control structures
+extern char __kernel_base[];
 
 // pc : entry point
 struct process* create_process(uint32_t pc){
@@ -238,9 +279,21 @@ struct process* create_process(uint32_t pc){
     *--sp = 0;                  // s0
     *--sp = (uint32_t) pc;      // ra
 
+    // Map kernel pages
+    uint32_t *page_table = (uint32_t *) alloc_pages(1);
+    for (
+        paddr_t paddr = (paddr_t) __kernel_base;
+        paddr < (paddr_t) __free_ram_end;
+        paddr += PAGE_SIZE
+    ){
+        // in our implementation vaddr == paddr for the kernel
+        map_page(page_table, paddr, paddr, PAGE_R | PAGE_W | PAGE_X);
+    }
+
     proc->pid = i + 1;
     proc->state = PROC_RUNNABLE;
     proc->sp = (uint32_t) sp;
+    proc->page_table = page_table;
     return proc;
 }
 
@@ -272,10 +325,17 @@ void yield(void) {
     if (next == current_proc) return;
 
     // store bottom of the next process' stack into tmp sscratch
+    // we can switch page tables using satp register
+    // sfence.vma should be set before and after
+    // when kernel starts satp isn't set, thus vaddr == paddr
     __asm__ __volatile__(
+        "sfence.vma\n"
+        "csrw satp, %[satp]\n"
+        "sfence.vma\n"
         "csrw sscratch, %[sscratch]\n"
         :
-        : [sscratch] "r" ((uint32_t) &next->stack[sizeof(next->stack)])
+        : [satp] "r" (SATP_SV32 | ((uint32_t) next->page_table / PAGE_SIZE)),
+          [sscratch] "r" ((uint32_t) &next->stack[sizeof(next->stack)])
     );
 
     struct process *prev = current_proc;
@@ -307,6 +367,7 @@ void proc_b_entry(void) {
         delay();
     }
 }
+
 
 void kernel_main(void) {
     memset(__bss, 0, (size_t) __bss_end - (size_t) __bss);

@@ -1,9 +1,17 @@
+
+/* the first function of the el is boot, i.e.
+boot will be at 0x80200000 */
+
 ENTRY(boot)
 
 SECTIONS {
+    /* we know that OpenBSI jumps on this address to boot */
     . = 0x80200000;
+    /* kernel memory should be right where elf starts*/
+    __kernel_base = .;
 
     .text :{
+        /* keep boot function at the beginning*/
         KEEP(*(.text.boot));
         *(.text .text.*);
     }
